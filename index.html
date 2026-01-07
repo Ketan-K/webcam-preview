@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <title>Webcam Preview Tool - Test & Preview Your Camera with Zoom</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Free webcam preview tool to test and preview your camera in browser. Features auto-start, zoom selection, fullscreen mode, screenshot capture, and multi-camera support. No installation required.">
+    <meta name="keywords" content="webcam test, camera preview, webcam viewer, test camera, webcam zoom, camera tool, browser webcam, webcam screenshot">
+    <meta name="author" content="Webcam Preview Tool">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Webcam Preview Tool - Test & Preview Your Camera">
+    <meta property="og:description" content="Free browser-based tool to test and preview your webcam with advanced features like zoom, multi-camera support, and screenshot capture.">
+    <meta property="og:site_name" content="Webcam Preview Tool">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Webcam Preview Tool - Test & Preview Your Camera">
+    <meta name="twitter:description" content="Free browser-based tool to test and preview your webcam with advanced features like zoom, multi-camera support, and screenshot capture.">
+    
+    <!-- Theme & App -->
+    <meta name="theme-color" content="#000000">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Webcam Preview">
+    
+    <!-- Security -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; media-src 'self' blob:; img-src 'self' data: blob:;">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            cursor: none;
+        }
+
+        .video-container.active {
+            cursor: default;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            transition: transform 0.3s ease;
+            transform-origin: center center;
+        }
+
+        .zoom-selection {
+            position: absolute;
+            border: 2px solid rgba(102, 126, 234, 0.8);
+            background: rgba(102, 126, 234, 0.2);
+            pointer-events: none;
+            display: none;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 15px;
+            min-width: 280px;
+            max-width: 350px;
+            opacity: 0;
+            transform: translateX(-10px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .video-container.active .overlay {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: auto;
+        }
+
+        .overlay-title {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.9;
+        }
+
+        .camera-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .camera-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .camera-item.active {
+            background: rgba(102, 126, 234, 0.9);
+            border-color: rgba(102, 126, 234, 1);
+        }
+
+        .camera-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 16px;
+        }
+
+        .camera-item.active .camera-icon {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .camera-name {
+            flex: 1;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            flex: 1;
+        }
+
+        .btn-primary {
+            background: rgba(102, 126, 234, 0.9);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: rgba(102, 126, 234, 1);
+        }
+
+        .btn-secondary {
+            background: rgba(108, 117, 125, 0.8);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(108, 117, 125, 1);
+        }
+
+        .btn-danger {
+            background: rgba(220, 53, 69, 0.8);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: rgba(220, 53, 69, 1);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .stats-overlay {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 15px 20px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .video-container.active .stats-overlay {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            min-width: 200px;
+        }
+
+        .stat-label {
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+            margin-right: 20px;
+        }
+
+        .stat-value {
+            color: #fff;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .no-camera-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .error-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            z-index: 20;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="video-container" id="videoContainer">
+        <video id="videoPreview" autoplay playsinline muted></video>
+        <div class="zoom-selection" id="zoomSelection"></div>
+
+        <div class="overlay">
+            <div class="overlay-title">Cameras</div>
+            <div id="cameraList">
+                <div style="color: rgba(255,255,255,0.5); font-size: 12px; padding: 10px;">Detecting...</div>
+            </div>
+            <div class="controls">
+                <button class="btn-primary" id="fullscreenBtn" disabled>Fullscreen</button>
+                <button class="btn-secondary" id="screenshotBtn" disabled>Screenshot</button>
+                <button class="btn-danger" id="stopBtn" disabled>Stop</button>
+            </div>
+        </div>
+
+        <div class="stats-overlay" id="statsOverlay">
+            <div class="stat-row">
+                <span class="stat-label">Camera:</span>
+                <span class="stat-value" id="infoCamera">-</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Resolution:</span>
+                <span class="stat-value" id="infoResolution">-</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Aspect Ratio:</span>
+                <span class="stat-value" id="infoAspect">-</span>
+            </div>
+        </div>
+
+        <div id="errorContainer"></div>
+    </div>
+
+    <script>
+        let currentStream = null;
+        let cameras = [];
+        let mouseTimer = null;
+        let zoomState = { scale: 1, x: 0, y: 0 };
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+
+        const elements = {
+            cameraList: document.getElementById('cameraList'),
+            video: document.getElementById('videoPreview'),
+            videoContainer: document.getElementById('videoContainer'),
+            statsOverlay: document.getElementById('statsOverlay'),
+            fullscreenBtn: document.getElementById('fullscreenBtn'),
+            screenshotBtn: document.getElementById('screenshotBtn'),
+            stopBtn: document.getElementById('stopBtn'),
+            errorContainer: document.getElementById('errorContainer'),
+            infoCamera: document.getElementById('infoCamera'),
+            infoResolution: document.getElementById('infoResolution'),
+            infoAspect: document.getElementById('infoAspect'),
+            zoomSelection: document.getElementById('zoomSelection')
+        };
+
+        // Show error message
+        function showError(message) {
+            elements.errorContainer.innerHTML = `
+                <div class="error-overlay">
+                    ${message}
+                </div>
+            `;
+            setTimeout(() => {
+                clearError();
+            }, 5000);
+        }
+
+        // Clear error message
+        function clearError() {
+            elements.errorContainer.innerHTML = '';
+        }
+
+        // Enumerate cameras
+        async function getCameras() {
+            try {
+                // First request permission
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                cameras = devices.filter(device => device.kind === 'videoinput');
+                
+                if (cameras.length === 0) {
+                    elements.cameraList.innerHTML = `
+                        <div style="color: rgba(255,255,255,0.5); font-size: 12px; padding: 10px;">No cameras found</div>
+                    `;
+                    return;
+                }
+
+                renderCameraList();
+                
+                // Auto-start first camera
+                if (cameras.length > 0) {
+                    startCamera(cameras[0].deviceId);
+                    document.querySelector('.camera-item')?.classList.add('active');
+                }
+            } catch (error) {
+                console.error('Error getting cameras:', error);
+                showError('Camera access denied');
+                elements.cameraList.innerHTML = `
+                    <div style="color: rgba(220,53,69,0.8); font-size: 12px; padding: 10px;">Access denied</div>
+                `;
+            }
+        }
+
+        // Render camera list
+        function renderCameraList() {
+            elements.cameraList.innerHTML = cameras.map((camera, index) => `
+                <div class="camera-item" data-device-id="${camera.deviceId}" data-index="${index}">
+                    <div class="camera-icon">📹</div>
+                    <div class="camera-name">${camera.label || `Camera ${index + 1}`}</div>
+                </div>
+            `).join('');
+
+            // Add click handlers
+            document.querySelectorAll('.camera-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const deviceId = item.dataset.deviceId;
+                    startCamera(deviceId);
+                    
+                    // Update active state
+                    document.querySelectorAll('.camera-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                });
+            });
+        }
+
+        // Start camera
+        async function startCamera(deviceId) {
+            try {
+                clearError();
+                
+                // Stop current stream
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+
+                // Start new stream
+                const constraints = {
+                    video: {
+                        deviceId: deviceId ? { exact: deviceId } : undefined,
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                };
+
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                elements.video.srcObject = currentStream;
+
+                // Enable buttons
+                elements.fullscreenBtn.disabled = false;
+                elements.screenshotBtn.disabled = false;
+                elements.stopBtn.disabled = false;
+
+                // Update info
+                updateVideoInfo(deviceId);
+
+            } catch (error) {
+                console.error('Error starting camera:', error);
+                showError(`Failed to start camera: ${error.message}`);
+            }
+        }
+
+        // Update video info
+        function updateVideoInfo(deviceId) {
+            const camera = cameras.find(c => c.deviceId === deviceId);
+            elements.infoCamera.textContent = camera ? camera.label : 'Unknown';
+
+            elements.video.addEventListener('loadedmetadata', () => {
+                const width = elements.video.videoWidth;
+                const height = elements.video.videoHeight;
+                elements.infoResolution.textContent = `${width} × ${height}`;
+                elements.infoAspect.textContent = `${(width / height).toFixed(2)}:1`;
+            }, { once: true });
+        }
+
+        // Stop camera
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+                elements.video.srcObject = null;
+                
+                // Disable buttons
+                elements.fullscreenBtn.disabled = true;
+                elements.screenshotBtn.disabled = true;
+                elements.stopBtn.disabled = true;
+                
+                // Reset stats
+                elements.infoCamera.textContent = '-';
+                elements.infoResolution.textContent = '-';
+                elements.infoAspect.textContent = '-';
+                
+                // Clear active state
+                document.querySelectorAll('.camera-item').forEach(i => i.classList.remove('active'));
+            }
+        }
+
+        // Fullscreen
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                elements.videoContainer.requestFullscreen().catch(err => {
+                    showError(`Fullscreen failed`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Screenshot
+        function takeScreenshot() {
+            const canvas = document.createElement('canvas');
+            canvas.width = elements.video.videoWidth;
+            canvas.height = elements.video.videoHeight;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(elements.video, 0, 0);
+            
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `webcam-${Date.now()}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        // Mouse movement tracking
+        function showControls() {
+            elements.videoContainer.classList.add('active');
+            clearTimeout(mouseTimer);
+            mouseTimer = setTimeout(() => {
+                elements.videoContainer.classList.remove('active');
+            }, 3000);
+        }
+
+        // Zoom functions
+        function resetZoom() {
+            zoomState = { scale: 1, x: 0, y: 0 };
+            elements.video.style.transform = 'scale(1) translate(0, 0)';
+        }
+
+        function applyZoom(rect) {
+            const videoRect = elements.video.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2 - videoRect.left;
+            const centerY = rect.top + rect.height / 2 - videoRect.top;
+            
+            const scaleX = videoRect.width / rect.width;
+            const scaleY = videoRect.height / rect.height;
+            const scale = Math.min(scaleX, scaleY, 5); // Max 5x zoom
+            
+            const offsetX = (videoRect.width / 2 - centerX) / videoRect.width * 100;
+            const offsetY = (videoRect.height / 2 - centerY) / videoRect.height * 100;
+            
+            zoomState = { scale, x: offsetX, y: offsetY };
+            elements.video.style.transform = `scale(${scale}) translate(${offsetX}%, ${offsetY}%)`;
+        }
+
+        // Drag to select zoom area or click to reset
+        elements.videoContainer.addEventListener('mousedown', (e) => {
+            if (e.target !== elements.video && e.target !== elements.videoContainer) return;
+            if (e.button !== 0) return; // Only left click
+            
+            isDragging = true;
+            dragStart = { x: e.clientX, y: e.clientY };
+            elements.zoomSelection.style.left = e.clientX + 'px';
+            elements.zoomSelection.style.top = e.clientY + 'px';
+            elements.zoomSelection.style.width = '0px';
+            elements.zoomSelection.style.height = '0px';
+            elements.zoomSelection.style.display = 'block';
+        });
+
+        elements.videoContainer.addEventListener('mousemove', (e) => {
+            showControls();
+            
+            if (!isDragging) return;
+            
+            const currentX = e.clientX;
+            const currentY = e.clientY;
+            const left = Math.min(dragStart.x, currentX);
+            const top = Math.min(dragStart.y, currentY);
+            const width = Math.abs(currentX - dragStart.x);
+            const height = Math.abs(currentY - dragStart.y);
+            
+            elements.zoomSelection.style.left = left + 'px';
+            elements.zoomSelection.style.top = top + 'px';
+            elements.zoomSelection.style.width = width + 'px';
+            elements.zoomSelection.style.height = height + 'px';
+        });
+
+        elements.videoContainer.addEventListener('mouseup', (e) => {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            const rect = elements.zoomSelection.getBoundingClientRect();
+            elements.zoomSelection.style.display = 'none';
+            
+            // Check if it was a click (small movement) or a drag
+            const dragDistance = Math.sqrt(
+                Math.pow(e.clientX - dragStart.x, 2) + 
+                Math.pow(e.clientY - dragStart.y, 2)
+            );
+            
+            if (dragDistance < 10) {
+                // Single click - reset zoom
+                if (zoomState.scale > 1) {
+                    resetZoom();
+                }
+            } else if (rect.width > 50 && rect.height > 50) {
+                // Drag - zoom to selection
+                applyZoom(rect);
+            }
+        });
+
+        elements.videoContainer.addEventListener('mouseleave', () => {
+            if (isDragging) {
+                isDragging = false;
+                elements.zoomSelection.style.display = 'none';
+            }
+        });
+
+        // Event listeners
+        elements.fullscreenBtn.addEventListener('click', toggleFullscreen);
+        elements.screenshotBtn.addEventListener('click', takeScreenshot);
+        elements.stopBtn.addEventListener('click', stopCamera);
+        
+        // Show controls on initial load
+        showControls();
+
+        // Handle fullscreen change
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                elements.fullscreenBtn.textContent = 'Exit Fullscreen';
+            } else {
+                elements.fullscreenBtn.textContent = 'Fullscreen';
+            }
+        });
+
+        // Initialize
+        getCameras();
+
+        // Handle device changes
+        navigator.mediaDevices.addEventListener('devicechange', () => {
+            console.log('Device change detected');
+            getCameras();
+        });
+    </script>
+</body>
+</html>
